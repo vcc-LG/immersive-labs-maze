@@ -26,8 +26,7 @@ module Maze
       # Add the starting tile as a node to the unvisited tile queue
       queue << Node.new(distance: distance_grid[maze_start.y][maze_start.x], pos: maze_start)
 
-      # Keep looping through unvisited tiles until we've reached the maze end
-      # or we've visited every available node
+      # Keep looping through unvisited tiles until we've visited every available node
       until queue.empty?
         # The tile we pick is an unvisited tile with the next
         # shortest distance from the start
@@ -36,9 +35,10 @@ module Maze
         distance_from_current = current_tile.distance + 1
         neighbours = @maze.adjacent(current_tile.pos)
         neighbours.each do |n|
+          # Ignore tiles we've previously visited
           next if visited.any? { |v| v.pos == n }
 
-          # Update neighbour if new calculated distance is shorter than its
+          # Update neighbour only if new calculated distance is shorter than its
           # current distance value
           next unless distance_from_current < distance_grid[n.y][n.x]
 
