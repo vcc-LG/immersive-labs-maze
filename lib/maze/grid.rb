@@ -1,39 +1,53 @@
 module Maze
   class Grid
     attr_reader :width, :height
+
     def initialize(width: 5, height: 5)
-      @grid = (0..(height-1)).map { Array.new(width) }
+      @grid = (0..(height - 1)).map { Array.new(width) }
       @width = width
       @height = height
       init_with_spaces
     end
 
     def self.new_from_array(array)
-      height = array.max {|obj| obj.pos.y}.pos.y+1
-      width = array.max {|obj| obj.pos.x}.pos.x+1
+      height = array.max { |obj| obj.pos.y }.pos.y + 1
+      width = array.max { |obj| obj.pos.x }.pos.x + 1
       grid = new(width: width, height: height)
 
-      array.each {|obj| grid.set(obj)}
+      array.each { |obj| grid.set(obj) }
       grid
     end
 
     def at(pos)
-      grid[pos.y][pos.x] rescue nil
+      grid[pos.y][pos.x]
+    rescue StandardError
+      nil
     end
 
     def set(positionable)
       pos = positionable.pos
       raise "Invalid x (#{pos.x}). Width: #{width}" if pos.x >= width
       raise "Invalid y (#{pos.y}). Height #{height}" if pos.y >= height
+
       grid[pos.y][pos.x] = positionable
     end
 
     def find(tile_char)
-      grid.each_with_index do |line, y|
-        line.each_with_index do |tile, x|
+      grid.each_with_index do |line, _y|
+        line.each_with_index do |tile, _x|
           return tile if tile && tile.char == tile_char
         end
       end
+    end
+
+    def valid_pos_array
+      result = []
+      grid.each_with_index do |line, _y|
+        line.each_with_index do |tile, _x|
+          result << tile if tile && tile.char != '#'
+        end
+      end
+      result
     end
 
     def to_s
@@ -43,15 +57,16 @@ module Maze
     end
 
     private
-      attr_reader :grid
 
-      def init_with_spaces
-        grid.each_with_index do |line, y|
-          line.each_with_index do |tile, x|
-            set(Tile.space(pos: Pos.new(x, y)))
-          end
+    attr_reader :grid
+
+    def init_with_spaces
+      grid.each_with_index do |line, y|
+        line.each_with_index do |_tile, x|
+          set(Tile.space(pos: Pos.new(x, y)))
         end
-        self
       end
+      self
+    end
   end
 end

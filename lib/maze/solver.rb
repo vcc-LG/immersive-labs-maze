@@ -2,98 +2,49 @@ require 'pry'
 
 module Maze
   class Solver
-    attr_reader :file_name, :solution_node_array
+    attr_reader :file_name, :solution_node_array, :graph
 
     def initialize(file_name:)
       @file_name = file_name
       @maze = MazeFileParser.new.perform(@file_name)
-      @solution_node_array = []
+      @graph = Graph.new(maze: @maze)
     end
 
     def perform
-      # Create a grid of equal size to the maze to hold distance values.
-      # Set each to infinity until we've calculated its distance from 's'
-      distance_grid = Array.new(@maze.grid.height, 1 << 64) { Array.new(@maze.grid.width, 1 << 64) }
-
       visited = []
-      queue = []
+      node_queue = @graph.nodes
+      until node_queue.empty?
+        current_node = node_queue.sort_by!(&:distance).shift
+        current_node.adjacent.reject { |n| visited.map.any? n }.each do |neighbour|
+          next unless current_node.distance + 1 < neighbour.distance
 
-      maze_start = @maze.grid.find('s').pos
-      maze_end = @maze.grid.find('e').pos
-
-      # The starting position has distance 0
-      distance_grid[maze_start.y][maze_start.x] = 0
-      # Add the starting tile as a node to the unvisited tile queue
-      queue << Node.new(distance: distance_grid[maze_start.y][maze_start.x], pos: maze_start)
-
-      # Keep looping through unvisited tiles until we've visited every available node
-      until queue.empty?
-        # The tile we pick is an unvisited tile with the next
-        # shortest distance from the start
-        current_tile = queue.sort_by!(&:distance).shift
-
-        distance_from_current = current_tile.distance + 1
-        neighbours = @maze.adjacent(current_tile.pos)
-        neighbours.each do |n|
-          # Ignore tiles we've previously visited
-          next if visited.any? { |v| v.pos == n }
-
-          # Update neighbour only if new calculated distance is shorter than its
-          # current distance value
-          next unless distance_from_current < distance_grid[n.y][n.x]
-
-          distance_grid[n.y][n.x] = distance_from_current
-          # Find out which direction this neighbouring tile is
-          # from our current position
-          if n == current_tile.pos.left
-            direction = 'L'
-          elsif n == current_tile.pos.right
-            direction = 'R'
-          elsif n == current_tile.pos.up
-            direction = 'U'
-          elsif n == current_tile.pos.down
-            direction = 'D'
-          end
-          # Remove old node data in queue and replace with updated
-          queue.reject { |v| v.pos == n }
-          queue << Node.new(distance: distance_grid[n.y][n.x], pos: n, through: current_tile, direction: direction)
+          neighbour.through = current_node
         end
-        # Once we've calculated all neighbouring tile distances
-        # we can mark the current tile as 'visited'
-        visited << current_tile
-
+        visited << current_node
       end
-
-      # Generate list of nodes along solution path
-      # from start to end by walking back through
-      # connected tiles from end tile
-      @solution_node_array = []
-      node_on_path = visited.find { |v| v.pos == maze_end }
-
-      # If the end tile was never reached then the algorithm
-      # wasn't able to find a path from the start
-      return 'No solution found' if node_on_path.nil?
-
-      while node_on_path.pos != maze_start
-        @solution_node_array << node_on_path
-        node_on_path = node_on_path.through
-      end
-
-      @solution_node_array.reverse!
-
-      # Return string representing direction choices
-      @solution_node_array.map(&:direction).join(' ')
+      solution_as_str(visited)
     end
-  end
 
-  class Node
-    attr_reader :pos, :distance, :through, :direction
+    private
 
-    def initialize(pos:, distance:, through: nil, direction: nil)
-      @pos = pos
-      @distance = distance
-      @through = through
-      @direction = direction
+    def solution_as_str(visited_list)
+      return 'No solution found' if visited_list.detect { |v| v.maze_char == 'e' }.through.nil?
+
+      path_list_direction_chars(sort_visited_list_from_end(visited_list))
+    end
+
+    def sort_visited_list_from_end(visited_list)
+      result = []
+      path_node = visited_list.detect { |v| v.maze_char == 'e' }
+      until path_node.maze_char == 's'
+        result << path_node
+        path_node = path_node.through
+      end
+      result.reverse!
+    end
+
+    def path_list_direction_chars(path_list)
+      path_list.map(&:direction).join(' ')
     end
   end
 end
